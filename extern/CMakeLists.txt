@@ -16,15 +16,13 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(fetch_vk_bootstrap)
 
-# SDL2
-add_library(sdl2 INTERFACE)
-set(sdl2_DIR "/usr/" CACHE PATH "Path to SDL2")
 
 if(UNIX)
-target_include_directories(sdl2 INTERFACE ${sdl2_DIR}/include/SDL2 
+  # SDL2
+  add_library(sdl2 INTERFACE)
+  set(sdl2_DIR "/usr/" CACHE PATH "Path to SDL2")
+  target_include_directories(sdl2 INTERFACE ${sdl2_DIR}/include/SDL2
   ${sdl2_image_DIR}/include/SDL2)
-target_link_directories(sdl2 INTERFACE ${sdl2_DIR}/lib ${sdl2_image_DIR}/lib)
+  target_link_directories(sdl2 INTERFACE ${sdl2_DIR}/lib ${sdl2_image_DIR}/lib)
+  target_link_libraries(sdl2 INTERFACE SDL2 SDL2main)
 endif()
-
-target_link_libraries(sdl2 INTERFACE SDL2 SDL2main)
-

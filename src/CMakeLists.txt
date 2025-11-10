@@ -12,4 +12,14 @@ qimages.hpp
 target_include_directories(QEngine PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(QEngine vk-bootstrap::vk-bootstrap)
 target_link_libraries(QEngine fmt::fmt)
-target_link_libraries(QEngine Vulkan::Vulkan sdl2)
+
+if(APPLE)
+  message(WARNING "Finding SDL2 on macos.")
+  find_package(SDL2 REQUIRED)
+  find_package(SDL2_image REQUIRED)
+  message(WARNING "Linking vulkan in macos.")
+  target_link_libraries(QEngine Vulkan::Vulkan SDL2::SDL2)
+elseif(UNIX)
+  target_link_libraries(QEngine Vulkan::Vulkan sdl2)
+endif()
+
