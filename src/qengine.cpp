@@ -154,7 +154,7 @@ void QEngine::run() {
 }
 
 void QEngine::init_vulkan() {
-  vkb::InstanceBuilder builder(vkGetInstanceProcAddr);
+  vkb::InstanceBuilder builder;
 
   //
   // Instance
