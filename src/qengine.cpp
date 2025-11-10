@@ -1,9 +1,9 @@
 #include "VkBootstrap.h"
-#include "qinitializers.hpp"
 #include <SDL.h>
 #include <SDL_vulkan.h>
 #include <algorithm>
 #include <qengine.hpp>
+#include <qinitializers.hpp>
 #include <qtypes.hpp>
 #include <vulkan/vulkan_core.h>
 
@@ -28,7 +28,6 @@ QEngine::QEngine() {
 
 QEngine::~QEngine() {
   if (_isInitialized) {
-    fmt::print("Destroying engine\n");
     vkDeviceWaitIdle(_device);
 
     for (int i = 0; i < FRAME_OVERLAP; i++) {
