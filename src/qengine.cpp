@@ -37,7 +37,10 @@ QEngine::~QEngine() {
       vkDestroyFence(_device, _frames[i]._renderFence, nullptr);
       vkDestroySemaphore(_device, _frames[i]._swapchainSemaphore, nullptr);
       vkDestroySemaphore(_device, _frames[i]._renderSemaphore, nullptr);
+      _frames[i]._deletionQueue.flush();
     }
+
+    _mainDeletionQueue.flush();
 
     destroy_swapchain();
     vkDestroySurfaceKHR(_instance, _surface, nullptr);
@@ -50,6 +53,13 @@ QEngine::~QEngine() {
 }
 
 void QEngine::draw() {
+  // wait until the gpu has finished rendering the last frame. Timeout of 1
+  // second
+  VK_CHECK(vkWaitForFences(_device, 1, &current_frame()._renderFence, true,
+                           1000000000));
+
+  current_frame()._deletionQueue.flush();
+
   VK_CHECK(vkWaitForFences(_device, 1, &current_frame()._renderFence, true,
                            1000000000));
   VK_CHECK(vkResetFences(_device, 1, &current_frame()._renderFence));
@@ -67,36 +77,39 @@ void QEngine::draw() {
   // Begin command buffer recording.
   VkCommandBufferBeginInfo cmdBeginInfo = qinit::command_buffer_begin_info(
       VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+  _drawExtent.width = _drawImage.imageExtent.width;
+  _drawExtent.height = _drawImage.imageExtent.height;
 
-  // Start command buffer recording.
   VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
-  // make the swapchain image into writeable mode before rendering
+  // transition our main draw image into general layout so we can write into it
+  // we will overwrite it all so we dont care about what was the older layout
+  qutils::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED,
+                           VK_IMAGE_LAYOUT_GENERAL);
+
+  draw_background(cmd);
+
+  // transition the draw image and the swapchain image into their correct
+  // transfer layouts
+  qutils::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL,
+                           VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
   qutils::transition_image(cmd, _swapchainImages[swapchainImageIndex],
-                           VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+                           VK_IMAGE_LAYOUT_UNDEFINED,
+                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-  // make a clear-color from frame number. This will flash with a 120 frame
-  // period.
-  VkClearColorValue clearValue;
-  float flash = std::abs(std::sin(_frameNumber / 120.f));
-  clearValue = {{0.0f, 0.0f, flash, 1.0f}};
+  // execute a copy from the draw image into the swapchain
+  qutils::copy_image_to_image(cmd, _drawImage.image,
+                              _swapchainImages[swapchainImageIndex],
+                              _drawExtent, _swapchainExtent);
 
-  VkImageSubresourceRange clearRange =
-      qinit::image_subresource_range(VK_IMAGE_ASPECT_COLOR_BIT);
-
-  // clear image
-  vkCmdClearColorImage(cmd, _swapchainImages[swapchainImageIndex],
-                       VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &clearRange);
-
-  // make the swapchain image into presentable mode
+  // set swapchain image layout to Present so we can show it on the screen
   qutils::transition_image(cmd, _swapchainImages[swapchainImageIndex],
-                           VK_IMAGE_LAYOUT_GENERAL,
+                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                            VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
   // finalize the command buffer (we can no longer add commands, but it can now
   // be executed)
   VK_CHECK(vkEndCommandBuffer(cmd));
-
   // prepare the submission to the queue.
   // we want to wait on the _presentSemaphore, as that semaphore is signaled
   // when the swapchain is ready we will signal the _renderSemaphore, to signal
@@ -226,10 +239,58 @@ void QEngine::create_swapchain(uint32_t width, uint32_t height) {
   _swapchain = vkbSwapchain.swapchain;
   _swapchainImages = vkbSwapchain.get_images().value();
   _swapchainImageViews = vkbSwapchain.get_image_views().value();
+
+  // initialize the memory allocator
+  VmaAllocatorCreateInfo allocatorInfo = {};
+  allocatorInfo.physicalDevice = _chosenGPU;
+  allocatorInfo.device = _device;
+  allocatorInfo.instance = _instance;
+  allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+  vmaCreateAllocator(&allocatorInfo, &_allocator);
+
+  _mainDeletionQueue.push_function([&]() { vmaDestroyAllocator(_allocator); });
 }
 
 void QEngine::init_swapchain() {
   create_swapchain(_windowExtent.width, _windowExtent.height);
+  // draw image size will match the window
+  VkExtent3D drawImageExtent = {_windowExtent.width, _windowExtent.height, 1};
+
+  // hardcoding the draw format to 32 bit float
+  _drawImage.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
+  _drawImage.imageExtent = drawImageExtent;
+
+  VkImageUsageFlags drawImageUsages{};
+  drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+  drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+  drawImageUsages |= VK_IMAGE_USAGE_STORAGE_BIT;
+  drawImageUsages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+  VkImageCreateInfo rimg_info = qinit::image_create_info(
+      _drawImage.imageFormat, drawImageUsages, drawImageExtent);
+
+  // for the draw image, we want to allocate it from gpu local memory
+  VmaAllocationCreateInfo rimg_allocinfo = {};
+  rimg_allocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+  rimg_allocinfo.requiredFlags =
+      VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+  // allocate and create the image
+  vmaCreateImage(_allocator, &rimg_info, &rimg_allocinfo, &_drawImage.image,
+                 &_drawImage.allocation, nullptr);
+
+  // build a image-view for the draw image to use for rendering
+  VkImageViewCreateInfo rview_info = qinit::imageview_create_info(
+      _drawImage.imageFormat, _drawImage.image, VK_IMAGE_ASPECT_COLOR_BIT);
+
+  VK_CHECK(
+      vkCreateImageView(_device, &rview_info, nullptr, &_drawImage.imageView));
+
+  // add to deletion queues
+  _mainDeletionQueue.push_function([=]() {
+    vkDestroyImageView(_device, _drawImage.imageView, nullptr);
+    vmaDestroyImage(_allocator, _drawImage.image, _drawImage.allocation);
+  });
 }
 
 void QEngine::init_commands() {
@@ -269,4 +330,19 @@ void QEngine::destroy_swapchain() {
   std::ranges::for_each(_swapchainImageViews, [this](auto imageView) {
     vkDestroyImageView(_device, imageView, nullptr);
   });
+}
+
+void QEngine::draw_background(VkCommandBuffer cmd) {
+  // make a clear-color from frame number. This will flash with a 120 frame
+  // period.
+  VkClearColorValue clearValue;
+  float flash = std::abs(std::sin(_frameNumber / 120.f));
+  clearValue = {{0.0f, 0.0f, flash, 1.0f}};
+
+  VkImageSubresourceRange clearRange =
+      qinit::image_subresource_range(VK_IMAGE_ASPECT_COLOR_BIT);
+
+  // clear image
+  vkCmdClearColorImage(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL,
+                       &clearValue, 1, &clearRange);
 }
