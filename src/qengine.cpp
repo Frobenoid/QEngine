@@ -3,11 +3,11 @@
 #include <SDL_vulkan.h>
 #include <algorithm>
 #include <qengine.hpp>
+#include <qimages.hpp>
 #include <qinitializers.hpp>
 #include <qtypes.hpp>
 #include <vulkan/vulkan_core.h>
 
-#include <qimages.hpp>
 constexpr bool useValidationLayers = true;
 
 QEngine::QEngine() {

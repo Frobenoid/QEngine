@@ -10,8 +10,7 @@ qimages.hpp
 )
 
 target_include_directories(QEngine PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-target_link_libraries(QEngine vk-bootstrap::vk-bootstrap)
-target_link_libraries(QEngine fmt::fmt)
+target_link_libraries(QEngine vk-bootstrap fmt vma)
 
 if(APPLE)
   message(STATUS "Finding SDL2.")

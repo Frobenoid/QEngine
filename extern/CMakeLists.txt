@@ -1,3 +1,6 @@
+find_package(Vulkan REQUIRED)
+
+add_library(vma INTERFACE)
 include(FetchContent)
 
 # FMT
@@ -16,6 +19,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(fetch_vk_bootstrap)
 
+target_include_directories(vma INTERFACE vma)
 
 if(UNIX)
   # SDL2
