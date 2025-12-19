@@ -7,6 +7,7 @@ qinitializers.cpp
 qinitializers.hpp
 qimages.cpp
 qimages.hpp
+qvma.cpp
 )
 
 target_include_directories(QEngine PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")

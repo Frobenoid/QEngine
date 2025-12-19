@@ -1,3 +1,5 @@
+#include <vulkan/vulkan.h>
+
 #include "VkBootstrap.h"
 #include <SDL.h>
 #include <SDL_vulkan.h>
@@ -6,7 +8,6 @@
 #include <qimages.hpp>
 #include <qinitializers.hpp>
 #include <qtypes.hpp>
-#include <vulkan/vulkan_core.h>
 
 constexpr bool useValidationLayers = true;
 

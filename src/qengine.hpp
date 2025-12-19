@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <qtypes.hpp>
 #include <vector>
+#include <vk_mem_alloc.h>
 #include <vulkan/vulkan_core.h>
 
 struct FrameData {
