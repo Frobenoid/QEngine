@@ -253,6 +253,7 @@ void QEngine::create_swapchain(uint32_t width, uint32_t height) {
 
 void QEngine::init_swapchain() {
   create_swapchain(_windowExtent.width, _windowExtent.height);
+
   // draw image size will match the window
   VkExtent3D drawImageExtent = {_windowExtent.width, _windowExtent.height, 1};
 
