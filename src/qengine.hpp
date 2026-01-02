@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <qdescriptors.hpp>
 #include <qtypes.hpp>
 #include <vector>
 #include <vk_mem_alloc.h>
@@ -84,10 +85,23 @@ private:
   AllocatedImage _drawImage;
   VkExtent2D _drawExtent;
 
+  // Descriptors
+  DescriptorAllocator globalDescriptorAllocator;
+  VkDescriptorSet _drawImageDescriptors;
+  VkDescriptorSetLayout _drawImageDescriptorLayout;
+
+  // Pipelines
+  VkPipeline _gradientPipeline;
+  VkPipelineLayout _gradientPipelineLayout;
+
   void init_vulkan();
   void init_swapchain();
   void init_commands();
   void init_sync_structures();
+  void init_descriptors();
+  void init_pipelines();
+  void init_background_pipelines();
+
   void create_swapchain(uint32_t width, uint32_t height);
   void destroy_swapchain();
 };
