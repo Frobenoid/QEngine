@@ -15,7 +15,7 @@ qpipelines.cpp
 )
 
 target_include_directories(QEngine PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-target_link_libraries(QEngine vk-bootstrap fmt vma)
+target_link_libraries(QEngine vk-bootstrap fmt vma imgui)
 
 if(APPLE)
   message(STATUS "Finding SDL2.")

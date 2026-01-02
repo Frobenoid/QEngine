@@ -21,6 +21,22 @@ FetchContent_MakeAvailable(fetch_vk_bootstrap)
 
 target_include_directories(vma INTERFACE vma)
 
+add_library(imgui STATIC)
+
+target_include_directories(imgui PUBLIC imgui)
+
+target_sources(imgui PRIVATE
+imgui/imgui.h
+imgui/imgui.cpp
+
+imgui/imgui_demo.cpp
+imgui/imgui_draw.cpp
+imgui/imgui_widgets.cpp
+
+imgui/imgui_impl_vulkan.cpp
+imgui/imgui_impl_sdl.cpp
+)
+
 if(UNIX)
   # SDL2
   add_library(sdl2 INTERFACE)
@@ -30,3 +46,5 @@ if(UNIX)
   target_link_directories(sdl2 INTERFACE ${sdl2_DIR}/lib ${sdl2_image_DIR}/lib)
   target_link_libraries(sdl2 INTERFACE SDL2 SDL2main)
 endif()
+
+target_link_libraries(imgui PUBLIC Vulkan::Vulkan sdl2)
