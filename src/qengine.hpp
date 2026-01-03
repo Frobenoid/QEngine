@@ -2,11 +2,28 @@
 
 #include <cstdint>
 #include <functional>
+#include <glm/glm.hpp>
 #include <qdescriptors.hpp>
 #include <qtypes.hpp>
 #include <vector>
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan_core.h>
+
+struct ComputePushConstants {
+  glm::vec4 data1;
+  glm::vec4 data2;
+  glm::vec4 data3;
+  glm::vec4 data4;
+};
+
+struct ComputeEffect {
+  const char *name;
+
+  VkPipeline pipeline;
+  VkPipelineLayout layout;
+
+  ComputePushConstants data;
+};
 
 struct DeletionQueue {
   std::deque<std::function<void()>> deletors;
@@ -99,6 +116,10 @@ private:
   VkFence _immFence;
   VkCommandBuffer _immCommandBuffer;
   VkCommandPool _immCommandPool;
+
+  // Effects
+  std::vector<ComputeEffect> backgroundEffects;
+  int currentBackgroundEffect{0};
 
   void immediate_submit(std::function<void(VkCommandBuffer cmd)> &&function);
 

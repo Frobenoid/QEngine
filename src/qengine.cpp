@@ -1,4 +1,6 @@
 #include "SDL_video.h"
+#include "fmt/core.h"
+#include "glm/ext/vector_float4.hpp"
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_vulkan.h"
@@ -6,6 +8,7 @@
 #include <chrono>
 #include <functional>
 #include <thread>
+#include <type_traits>
 #include <vulkan/vulkan.h>
 
 #include "VkBootstrap.h"
@@ -203,8 +206,14 @@ void QEngine::run() {
     ImGui_ImplSDL2_NewFrame();
     ImGui::NewFrame();
 
-    // Some imgui ui to test
-    ImGui::ShowDemoWindow();
+    if (ImGui::Begin("background")) {
+      ComputeEffect &selected = backgroundEffects[currentBackgroundEffect];
+      ImGui::Text("Selected effect");
+      ImGui::InputFloat4("data1", (float *)&selected.data.data1);
+      ImGui::InputFloat4("data2", (float *)&selected.data.data2);
+    }
+
+    ImGui::End();
 
     // Make imgui calculate internal draw structures.
     ImGui::Render();
@@ -408,6 +417,8 @@ void QEngine::draw_background(VkCommandBuffer cmd) {
   VkImageSubresourceRange clearRange =
       qinit::image_subresource_range(VK_IMAGE_ASPECT_COLOR_BIT);
 
+  ComputeEffect &effect = backgroundEffects[currentBackgroundEffect];
+
   // Bind the gradient drawing compute init_pipeline
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, _gradientPipeline);
 
@@ -416,6 +427,9 @@ void QEngine::draw_background(VkCommandBuffer cmd) {
                           _gradientPipelineLayout, 0, 1, &_drawImageDescriptors,
                           0, nullptr);
 
+  vkCmdPushConstants(cmd, _gradientPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT,
+                     0, sizeof(ComputePushConstants), &effect.data);
+  //
   // Execute the compute pipeline dispatch
   vkCmdDispatch(cmd, std::ceil(_drawExtent.width / 16.0),
                 std::ceil(_drawExtent.height / 16.0), 1);
@@ -474,6 +488,13 @@ void QEngine::init_background_pipelines() {
   computeLayout.pSetLayouts = &_drawImageDescriptorLayout;
   computeLayout.setLayoutCount = 1;
 
+  VkPushConstantRange pushConstant{};
+  pushConstant.offset = 0;
+  pushConstant.size = sizeof(ComputePushConstants);
+  pushConstant.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+  computeLayout.pPushConstantRanges = &pushConstant;
+  computeLayout.pushConstantRangeCount = 1;
   VK_CHECK(vkCreatePipelineLayout(_device, &computeLayout, nullptr,
                                   &_gradientPipelineLayout));
 
@@ -497,12 +518,23 @@ void QEngine::init_background_pipelines() {
   computePipelineCreateInfo.layout = _gradientPipelineLayout;
   computePipelineCreateInfo.stage = stageinfo;
 
+  ComputeEffect gradient;
+  gradient.layout = _gradientPipelineLayout;
+  gradient.name = "graident";
+  gradient.data = {};
+
+  // default
+  gradient.data.data1 = glm::vec4(1, 0, 0, 1);
+  gradient.data.data2 = glm::vec4(0, 0, 1, 1);
+
   VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1,
                                     &computePipelineCreateInfo, nullptr,
                                     &_gradientPipeline));
 
-  vkDestroyShaderModule(_device, computeDrawShader, nullptr);
+  // add background effect
+  backgroundEffects.push_back(gradient);
 
+  vkDestroyShaderModule(_device, computeDrawShader, nullptr);
   _mainDeletionQueue.push_function([&]() {
     vkDestroyPipelineLayout(_device, _gradientPipelineLayout, nullptr);
     vkDestroyPipeline(_device, _gradientPipeline, nullptr);

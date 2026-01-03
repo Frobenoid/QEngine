@@ -49,9 +49,14 @@ target_include_directories(imgui
   PUBLIC
   ${CMAKE_CURRENT_LIST_DIR}/imgui
   ${CMAKE_CURRENT_LIST_DIR}/imgui/backends
-
 )
 
+FetchContent_Declare(
+  glm 
+	GIT_REPOSITORY https://github.com/g-truc/glm.git
+	GIT_TAG 0af55ccecd98d4e5a8d1fad7de25ba429d60e863 #refs/tags/1.0.1
+)
+FetchContent_MakeAvailable(glm)
 
 if(APPLE)
   find_package(SDL2 REQUIRED)
