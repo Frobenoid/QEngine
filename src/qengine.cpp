@@ -1,8 +1,11 @@
+#include "SDL_video.h"
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_vulkan.h"
 
+#include <chrono>
 #include <functional>
+#include <thread>
 #include <vulkan/vulkan.h>
 
 #include "VkBootstrap.h"
@@ -112,6 +115,14 @@ void QEngine::draw() {
                               _swapchainImages[swapchainImageIndex],
                               _drawExtent, _swapchainExtent);
 
+  // set swapchain image layout to attachment optimal so we can draw it
+  qutils::transition_image(cmd, _swapchainImages[swapchainImageIndex],
+                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+  // Draw imgui into the swapchain image
+  draw_imgui(cmd, _swapchainImageViews[swapchainImageIndex]);
+
   // set swapchain image layout to Present so we can show it on the screen
   qutils::transition_image(cmd, _swapchainImages[swapchainImageIndex],
                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -165,12 +176,38 @@ void QEngine::draw() {
 void QEngine::run() {
   SDL_Event e;
   bool bQuit = false;
+  bool stop_rendering = false;
 
   while (!bQuit) {
     while (SDL_PollEvent(&e) != 0) {
       if (e.type == SDL_QUIT)
         bQuit = true;
+
+      if (e.window.event == SDL_WINDOWEVENT_MINIMIZED) {
+        stop_rendering = true;
+      }
+
+      if (e.window.event == SDL_WINDOWEVENT_RESTORED) {
+        stop_rendering = false;
+      }
+
+      ImGui_ImplSDL2_ProcessEvent(&e);
     }
+    if (stop_rendering) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      continue;
+    }
+
+    // IMGUI NEW FRAME
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplSDL2_NewFrame();
+    ImGui::NewFrame();
+
+    // Some imgui ui to test
+    ImGui::ShowDemoWindow();
+
+    // Make imgui calculate internal draw structures.
+    ImGui::Render();
 
     draw();
   }
@@ -557,4 +594,17 @@ void QEngine::init_imgui() {
     ImGui_ImplVulkan_Shutdown();
     vkDestroyDescriptorPool(_device, imguiPool, nullptr);
   });
+}
+
+void QEngine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView) {
+  VkRenderingAttachmentInfo colorAttachment = qinit::attachment_info(
+      targetImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+  VkRenderingInfo renderInfo =
+      qinit::rendering_info(_swapchainExtent, &colorAttachment, nullptr);
+
+  vkCmdBeginRendering(cmd, &renderInfo);
+
+  ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+
+  vkCmdEndRendering(cmd);
 }
