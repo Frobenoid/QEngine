@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <qdescriptors.hpp>
 #include <qtypes.hpp>
 #include <vector>
@@ -94,6 +95,14 @@ private:
   VkPipeline _gradientPipeline;
   VkPipelineLayout _gradientPipelineLayout;
 
+  // Immediate submit structures
+  VkFence _immFence;
+  VkCommandBuffer _immCommandBuffer;
+  VkCommandPool _immCommandPool;
+
+  void immediate_submit(std::function<void(VkCommandBuffer cmd)> &&function);
+
+  void init_imgui();
   void init_vulkan();
   void init_swapchain();
   void init_commands();

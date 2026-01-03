@@ -19,22 +19,37 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(fetch_vk_bootstrap)
 
+# imgui
+FetchContent_Declare(
+  imgui_git
+  GIT_REPOSITORY https://github.com/ocornut/imgui.git
+  GIT_TAG v1.92.5
+  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/imgui
+)
+FetchContent_MakeAvailable(imgui_git)
+
 target_include_directories(vma INTERFACE vma)
 
-add_library(imgui STATIC)
+add_library(imgui STATIC
+  "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui.h"
 
-target_include_directories(imgui PUBLIC imgui)
+  "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_demo.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_draw.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_tables.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_widgets.cpp"
 
-target_sources(imgui PRIVATE
-imgui/imgui.h
-imgui/imgui.cpp
+  "${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends/imgui_impl_sdl2.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends/imgui_impl_sdl2.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends/imgui_impl_vulkan.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends/imgui_impl_vulkan.cpp"
+)
 
-imgui/imgui_demo.cpp
-imgui/imgui_draw.cpp
-imgui/imgui_widgets.cpp
+target_include_directories(imgui
+  PUBLIC
+  ${CMAKE_CURRENT_LIST_DIR}/imgui
+  ${CMAKE_CURRENT_LIST_DIR}/imgui/backends
 
-imgui/imgui_impl_vulkan.cpp
-imgui/imgui_impl_sdl.cpp
 )
 
 if(UNIX)
