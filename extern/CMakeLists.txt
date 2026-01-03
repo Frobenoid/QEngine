@@ -24,31 +24,29 @@ FetchContent_Declare(
   imgui_git
   GIT_REPOSITORY https://github.com/ocornut/imgui.git
   GIT_TAG v1.92.5
-  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/imgui
 )
 FetchContent_MakeAvailable(imgui_git)
 
 target_include_directories(vma INTERFACE vma)
 
-add_library(imgui STATIC
-  "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui.cpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui.h"
+add_library(imgui 
+  ${imgui_git_SOURCE_DIR}/imgui.cpp
+  ${imgui_git_SOURCE_DIR}/imgui.h
 
-  "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_demo.cpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_draw.cpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_tables.cpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_widgets.cpp"
+  ${imgui_git_SOURCE_DIR}/imgui_demo.cpp
+  ${imgui_git_SOURCE_DIR}/imgui_draw.cpp
+  ${imgui_git_SOURCE_DIR}/imgui_tables.cpp
+  ${imgui_git_SOURCE_DIR}/imgui_widgets.cpp
 
-  "${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends/imgui_impl_sdl2.h"
-  "${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends/imgui_impl_sdl2.cpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends/imgui_impl_vulkan.h"
-  "${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends/imgui_impl_vulkan.cpp"
+  ${imgui_git_SOURCE_DIR}/backends/imgui_impl_sdl2.h
+  ${imgui_git_SOURCE_DIR}/backends/imgui_impl_sdl2.cpp  
+  ${imgui_git_SOURCE_DIR}/backends/imgui_impl_vulkan.h  
+  ${imgui_git_SOURCE_DIR}/backends/imgui_impl_vulkan.cpp
 )
 
-target_include_directories(imgui
-  PUBLIC
-  ${CMAKE_CURRENT_LIST_DIR}/imgui
-  ${CMAKE_CURRENT_LIST_DIR}/imgui/backends
+target_include_directories(imgui PUBLIC 
+  ${imgui_git_SOURCE_DIR}
+  ${imgui_git_SOURCE_DIR}/backends
 )
 
 FetchContent_Declare(
