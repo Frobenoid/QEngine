@@ -70,7 +70,6 @@ public:
   void run();
 
   FrameData &current_frame() { return _frames[_frameNumber % FRAME_OVERLAP]; }
-  void draw_background(VkCommandBuffer cmd);
 
 private:
   // Window
@@ -111,6 +110,8 @@ private:
   // Pipelines
   VkPipeline _gradientPipeline;
   VkPipelineLayout _gradientPipelineLayout;
+  VkPipeline _trianglePipeline;
+  VkPipelineLayout _trianglePipelineLayout;
 
   // Immediate submit structures
   VkFence _immFence;
@@ -130,9 +131,14 @@ private:
   void init_sync_structures();
   void init_descriptors();
   void init_pipelines();
+
+  void init_triangle_pipeline();
   void init_background_pipelines();
 
   void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
+  void draw_geometry(VkCommandBuffer cmd);
+  void draw_background(VkCommandBuffer cmd);
+
   void create_swapchain(uint32_t width, uint32_t height);
   void destroy_swapchain();
 };

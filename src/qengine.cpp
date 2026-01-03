@@ -105,6 +105,10 @@ void QEngine::draw() {
 
   draw_background(cmd);
 
+  qutils::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL,
+                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+  draw_geometry(cmd);
+
   // transition the draw image and the swapchain image into their correct
   // transfer layouts
   qutils::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL,
@@ -435,6 +439,39 @@ void QEngine::draw_background(VkCommandBuffer cmd) {
                 std::ceil(_drawExtent.height / 16.0), 1);
 }
 
+void QEngine::draw_geometry(VkCommandBuffer cmd) {
+  VkRenderingAttachmentInfo colorAttachment = qinit::attachment_info(
+      _drawImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+  VkRenderingInfo renderInfo =
+      qinit::rendering_info(_drawExtent, &colorAttachment, nullptr);
+  vkCmdBeginRendering(cmd, &renderInfo);
+
+  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipeline);
+
+  VkViewport viewport = {};
+  viewport.x = 0;
+  viewport.y = 0;
+  viewport.width = _drawExtent.width;
+  viewport.height = _drawExtent.height;
+  viewport.minDepth = 0.f;
+  viewport.maxDepth = 1.f;
+
+  vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+  VkRect2D scissor = {};
+  scissor.offset.x = 0;
+  scissor.offset.y = 0;
+  scissor.extent.width = _drawExtent.width;
+  scissor.extent.height = _drawExtent.height;
+
+  vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+  vkCmdDraw(cmd, 3, 1, 0, 0);
+
+  vkCmdEndRendering(cmd);
+}
+
 void QEngine::init_descriptors() {
   // create a descriptor pool that will hold 10 sets with 1 image each
   std::vector<DescriptorAllocator::PoolSizeRatio> sizes = {
@@ -479,7 +516,67 @@ void QEngine::init_descriptors() {
   });
 }
 
-void QEngine::init_pipelines() { init_background_pipelines(); }
+void QEngine::init_pipelines() {
+  init_triangle_pipeline();
+  init_background_pipelines();
+}
+
+void QEngine::init_triangle_pipeline() {
+  ///
+  /// LOADING SHADER MODULES.
+  ///
+  VkShaderModule triangleFragShader;
+  if (!qutils::load_shader_module("../shaders/triangle.frag.spv", _device,
+                                  &triangleFragShader)) {
+    fmt::print("Error when building the triangle fragment shader module.");
+  } else {
+    fmt::print("Successfully loaded the fragment shader module.");
+  }
+
+  VkShaderModule triangleVertexShader;
+  if (!qutils::load_shader_module("../shaders/triangle.vert.spv", _device,
+                                  &triangleVertexShader)) {
+    fmt::print("Error when building the triangle vertex shader module.");
+  } else {
+    fmt::print("Successfully loaded the vertex shader module.");
+  }
+
+  // build the pipeline layout that controls the inputs/outputs of the shader
+  // we are not using descriptor sets or other systems yet, so no need to use
+  // anything other than empty default
+  VkPipelineLayoutCreateInfo pipeline_layout_info =
+      qinit::pipeline_layout_create_info();
+  VK_CHECK(vkCreatePipelineLayout(_device, &pipeline_layout_info, nullptr,
+                                  &_trianglePipelineLayout));
+
+  ///
+  /// CREATING PIPELINE.
+  ///
+  PipelineBuilder pipelineBuilder;
+
+  pipelineBuilder._pipelineLayout = _trianglePipelineLayout;
+  pipelineBuilder.set_shaders(triangleVertexShader, triangleFragShader);
+  pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+  pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+  pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+  pipelineBuilder.set_multisampling_none();
+  pipelineBuilder.disable_blending();
+  pipelineBuilder.disable_depthtest();
+
+  // Connect the image format we will draw into, from draw image.
+  pipelineBuilder.set_color_attachment_format(_drawImage.imageFormat);
+  pipelineBuilder.set_depth_format(VK_FORMAT_UNDEFINED);
+
+  _trianglePipeline = pipelineBuilder.build_pipeline(_device);
+
+  vkDestroyShaderModule(_device, triangleFragShader, nullptr);
+
+  _mainDeletionQueue.push_function([&]() {
+    vkDestroyPipelineLayout(_device, _trianglePipelineLayout, nullptr);
+    vkDestroyPipeline(_device, _trianglePipeline, nullptr);
+  });
+  vkDestroyShaderModule(_device, triangleVertexShader, nullptr);
+}
 
 void QEngine::init_background_pipelines() {
   VkPipelineLayoutCreateInfo computeLayout{
