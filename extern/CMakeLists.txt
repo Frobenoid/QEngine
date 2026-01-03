@@ -52,14 +52,17 @@ target_include_directories(imgui
 
 )
 
-if(UNIX)
-  # SDL2
+
+if(APPLE)
+  find_package(SDL2 REQUIRED)
+  target_link_libraries(imgui PUBLIC Vulkan::Vulkan SDL2::SDL2)
+elseif(UNIX)
   add_library(sdl2 INTERFACE)
   set(sdl2_DIR "/usr/" CACHE PATH "Path to SDL2")
   target_include_directories(sdl2 INTERFACE ${sdl2_DIR}/include/SDL2
   ${sdl2_image_DIR}/include/SDL2)
   target_link_directories(sdl2 INTERFACE ${sdl2_DIR}/lib ${sdl2_image_DIR}/lib)
   target_link_libraries(sdl2 INTERFACE SDL2 SDL2main)
+  target_link_libraries(imgui PUBLIC Vulkan::Vulkan sdl2)
 endif()
 
-target_link_libraries(imgui PUBLIC Vulkan::Vulkan sdl2)
