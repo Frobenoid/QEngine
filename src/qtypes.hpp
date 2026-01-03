@@ -15,6 +15,7 @@
 #include <fmt/core.h>
 #include <vulkan/vk_enum_string_helper.h>
 
+/// Data required for an image.
 struct AllocatedImage {
   VkImage image;
   VkImageView imageView;

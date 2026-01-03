@@ -8,10 +8,14 @@ qinitializers.hpp
 qimages.cpp
 qimages.hpp
 qvma.cpp
+qdescriptors.hpp
+qdescriptors.cpp
+qpipelines.hpp
+qpipelines.cpp
 )
 
 target_include_directories(QEngine PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-target_link_libraries(QEngine vk-bootstrap fmt vma)
+target_link_libraries(QEngine vk-bootstrap fmt glm vma imgui)
 
 if(APPLE)
   message(STATUS "Finding SDL2.")
